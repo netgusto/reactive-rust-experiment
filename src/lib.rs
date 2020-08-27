@@ -214,11 +214,7 @@ fn render_node(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, b: &Node
     };
 
     if b.border && b.height >= 3 {
-        let width: usize = if b.width >= 2 {
-            b.width as usize - 2
-        } else {
-            0
-        };
+        let width = if b.width >= 2 { b.width - 2 } else { 0 } as usize;
         write!(
             stdout,
             "{}{}{}{}{}{}",
