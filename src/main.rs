@@ -1,51 +1,61 @@
-use std::process::Command;
-use std::process::Stdio;
-use std::thread;
-use std::time::{Duration, Instant};
+use std::cell::RefCell;
+
+mod lib;
+use lib::Node;
+
+#[derive(Copy, Clone)]
+struct State {
+    counter: i32,
+}
 
 fn main() -> Result<(), String> {
-    // let now = Instant::now();
-    let (cols, lines) = get_term_size()?;
-    // println!("{}", now.elapsed().as_millis());
-    // thread::sleep_ms(2000);
-
-    clear_screen();
-    print_at_pos("Hello!", cols / 2, lines / 2);
-    println!("Next2");
-    set_cursor_at_pos(1, 1);
-    thread::sleep_ms(2000);
-    clear_screen();
-    // println!("\x1b[0;31mHello\x1b[0m")
-    Ok(())
+    let state = RefCell::new(State { counter: 0 });
+    lib::run(&app, &state)
 }
 
-fn get_term_size() -> Result<(usize, usize), String> {
-    match Command::new("stty")
-        .arg("size")
-        .stdin(Stdio::inherit())
-        .output()
-    {
-        Ok(output) => {
-            let res = String::from_utf8_lossy(&output.stdout);
-            let parts: Vec<&str> = res.split_whitespace().collect();
-            let cols = parts[0].parse::<usize>().unwrap();
-            let lines = parts[1].parse::<usize>().unwrap();
+fn app<'a>(state: &'a RefCell<State>) -> Node<'a> {
+    let state_copy = state.borrow();
+    Node::new(1, 1, "SUPER")
+        .set_width(10)
+        .set_height(3)
+        .set_on_mouse_click(Some(Box::new(move || {
+            state.borrow_mut().counter += 100;
+        })))
+        .set_children(Some(vec![
+            Node::new(10, 10, "Less")
+                .set_width(30)
+                .set_height(7)
+                .disable(state_copy.counter <= 0)
+                .set_on_mouse_click(Some(Box::new(move || {
+                    let mut mutstate = state.borrow_mut();
+                    let new_counter = mutstate.counter - 5;
 
-            return Ok((cols, lines));
-        }
-        Err(_) => return Err("Could not determine term size".to_string()),
-    }
+                    mutstate.counter = if new_counter >= 0 { new_counter } else { 0 };
+                }))),
+            Node::new(45, 10, "Moar!")
+                .set_width(30)
+                .set_height(7)
+                .set_on_mouse_click(Some(Box::new(move || {
+                    state.borrow_mut().counter += 5;
+                }))),
+            Node::new(27, 30, &format!("{}", state_copy.counter))
+                .set_width(if state_copy.counter > 0 {
+                    state_copy.counter as u16
+                } else {
+                    0
+                })
+                .set_height(7),
+        ]))
 }
 
-fn clear_screen() {
-    println!("\x1b[0;0H\x1b[2J");
-}
-
-fn set_cursor_at_pos(col: usize, line: usize) {
-    print!("\x1b[{};{}H", col, line);
-}
-
-fn print_at_pos(s: &str, col: usize, line: usize) {
-    set_cursor_at_pos(col, line);
-    print!("{}", s);
-}
+// fn component_stuff<'a>(state: &'a RefCell<State>) -> Node<'a> {
+//     Node::new(30, 30, "Component stuff").set_children(Some(vec![
+//         Node::new(40, 40, "Clickable Children")
+//             .set_width(30)
+//             .set_height(5)
+//             .set_on_mouse_click(Some(Box::new(move || {
+//                 state.borrow_mut().counter -= 1;
+//             }))),
+//         Node::new(50, 50, "50!").set_height(10).set_width(30),
+//     ]))
+// }
