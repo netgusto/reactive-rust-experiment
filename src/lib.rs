@@ -17,30 +17,42 @@ pub struct Node<'a> {
     left: u16,
     width: u16,
     height: u16,
-    text: String,
+    text: Option<String>,
+    border: bool,
     on_mouse_click: Option<Box<dyn FnMut() -> () + 'a>>,
     on_mouse_down: Option<Box<dyn FnMut() -> () + 'a>>,
     disabled: bool,
-    children: Option<Vec<Node<'a>>>,
+    children: Option<Vec<Option<Node<'a>>>>,
 }
 
 impl<'a> Node<'a> {
-    pub fn new(left: u16, top: u16, text: &str) -> Node<'a> {
+    pub fn new(left: u16, top: u16) -> Node<'a> {
         Node {
             left: left,
             top: top,
             width: 1,
             height: 1,
-            text: String::from(text),
+            text: None,
             on_mouse_click: None,
             on_mouse_down: None,
             disabled: false,
+            border: false,
             children: None,
         }
     }
 
     pub fn disable(mut self, dis: bool) -> Self {
         self.disabled = dis;
+        self
+    }
+
+    pub fn set_border(mut self, b: bool) -> Self {
+        self.border = b;
+        self
+    }
+
+    pub fn set_text(mut self, t: Option<String>) -> Self {
+        self.text = t;
         self
     }
 
@@ -54,7 +66,7 @@ impl<'a> Node<'a> {
         self
     }
 
-    pub fn set_children(mut self, children: Option<Vec<Node<'a>>>) -> Self {
+    pub fn set_children(mut self, children: Option<Vec<Option<Node<'a>>>>) -> Self {
         self.children = children;
         self
     }
@@ -92,7 +104,7 @@ pub fn run<'a, T>(
         thread::sleep_ms(16);
     }
 
-    write!(stdout, "{}{}", termion::clear::All, cursor::Hide).unwrap();
+    write!(stdout, "{}{}", termion::clear::All, cursor::Show).unwrap();
     stdout.flush().unwrap();
     Ok(())
 }
@@ -141,7 +153,10 @@ fn track_mouse_down(node: &mut Node, left: u16, top: u16) {
         None => return,
         Some(children) => {
             for i in 0..children.len() {
-                track_mouse_down(&mut children[i], left, top);
+                match &mut children[i] {
+                    Some(c) => track_mouse_down(c, left, top),
+                    _ => (),
+                }
             }
         }
     }
@@ -162,7 +177,10 @@ fn track_mouse_pressed(node: &mut Node, left: u16, top: u16) {
         None => return,
         Some(children) => {
             for i in 0..children.len() {
-                track_mouse_pressed(&mut children[i], left, top);
+                match &mut children[i] {
+                    Some(c) => track_mouse_pressed(c, left, top),
+                    _ => (),
+                }
             }
         }
     }
@@ -190,32 +208,48 @@ fn render_node(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, b: &Node
         write!(stdout, "{}", color::Fg(color::Yellow)).unwrap();
     }
 
-    if b.height >= 3 {
+    let text = match &b.text {
+        Some(t) => t.as_str(),
+        None => "",
+    };
+
+    if b.border && b.height >= 3 {
+        let width: usize = if b.width >= 2 {
+            b.width as usize - 2
+        } else {
+            0
+        };
         write!(
             stdout,
             "{}{}{}{}{}{}",
-            Goto(left, top),
-            "▄".repeat(1 + b.width as usize),
-            Goto(left, top + b.height),
-            "▀".repeat(1 + b.width as usize),
+            Goto(left + 1, top),
+            "▀".repeat(width),
+            Goto(left + 1, top + b.height - 1),
+            "▄".repeat(width),
             Goto(
-                left + (b.width / 2) - (b.text.len() as u16 / 2),
+                left + (b.width / 2) - (text.len() as u16 / 2),
                 top + (b.height / 2)
             ),
-            b.text,
+            if width == 0 {
+                ""
+            } else if text.len() > width {
+                text.split_at(width).0
+            } else {
+                text
+            }
         )
         .unwrap();
-        for line in top + 1..top + b.height {
+        for line in top..top + b.height {
             write!(
                 stdout,
                 "{}█{}█",
                 Goto(left, line),
-                Goto(left + b.width, line),
+                Goto(left + b.width - 1, line),
             )
             .unwrap();
         }
     } else {
-        write!(stdout, "{}{}", Goto(left, top), b.text).unwrap();
+        write!(stdout, "{}{}", Goto(left, top), text).unwrap();
     }
 
     if b.disabled {
@@ -225,7 +259,10 @@ fn render_node(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, b: &Node
     match &b.children {
         Some(children) => {
             for c in children {
-                render_node(stdout, c)
+                match c {
+                    Some(n) => render_node(stdout, n),
+                    _ => (),
+                }
             }
         }
         None => (),
