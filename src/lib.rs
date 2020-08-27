@@ -11,7 +11,8 @@ use termion::{async_stdin, AsyncReader};
 
 use std::cell::RefCell;
 
-#[allow(dead_code)]
+pub type MouseClickHandler<'a> = Box<dyn FnMut() -> () + 'a>;
+
 pub struct Node<'a> {
     top: u16,
     left: u16,
@@ -19,11 +20,23 @@ pub struct Node<'a> {
     height: u16,
     text: Option<String>,
     border: bool,
-    on_mouse_click: Option<Box<dyn FnMut() -> () + 'a>>,
-    on_mouse_down: Option<Box<dyn FnMut() -> () + 'a>>,
+    on_mouse_click: Option<MouseClickHandler<'a>>,
+    on_mouse_down: Option<MouseClickHandler<'a>>,
     disabled: bool,
     children: Option<Vec<Option<Node<'a>>>>,
 }
+
+pub trait Component<'a> {
+    fn render() -> Node<'a>;
+}
+
+// pub trait StatefulComponent<'a> {
+//     type State;
+//     type Props;
+
+//     fn new(initial_state: &mut Self::State) -> Self;
+//     fn render(&self, props: &Self::Props) -> Option<Node<'a>>;
+// }
 
 impl<'a> Node<'a> {
     pub fn new(left: u16, top: u16) -> Node<'a> {
@@ -71,7 +84,7 @@ impl<'a> Node<'a> {
         self
     }
 
-    pub fn set_on_mouse_click(mut self, handler: Option<Box<dyn FnMut() -> () + 'a>>) -> Self {
+    pub fn set_on_mouse_click(mut self, handler: Option<MouseClickHandler<'a>>) -> Self {
         self.on_mouse_click = handler;
         self
     }

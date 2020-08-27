@@ -4,6 +4,8 @@ mod component;
 mod lib;
 use lib::Node;
 
+use component::HeaderProps;
+
 #[derive(Copy, Clone)]
 pub struct State {
     percent: u16,
@@ -16,7 +18,9 @@ fn main() -> Result<(), String> {
 
 fn app<'a>(state: &'a RefCell<State>) -> Node<'a> {
     Node::new(1, 1).set_children(Some(vec![
-        component::header(),
+        component::header(HeaderProps {
+            text: "Reactive TUI experiment with Rust",
+        }),
         component::settings_controls(state),
         component::footer(),
     ]))
