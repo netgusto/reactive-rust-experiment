@@ -2,10 +2,21 @@ use crate::lib::{MouseClickHandler, Node};
 use crate::State;
 use std::cell::RefCell;
 
-pub fn settings_controls<'a>(state: &'a RefCell<State>) -> Option<Node<'a>> {
+pub struct SettingsControlsProps {
+    pub increment: u16,
+}
+
+pub fn settings_controls<'a>(
+    props: SettingsControlsProps,
+    state: &'a RefCell<State>,
+) -> Option<Node<'a>> {
     let percent = state.borrow().percent;
     Some(Node::new(1, 1).set_children(Some(vec![
-        control_buttons(ControlButtonsProps { percent: percent }, state),
+        control_buttons(ControlButtonsProps {
+            percent: percent,
+            on_less: click_less(state, percent, props.increment),
+            on_more: click_more(state, props.increment),
+        }),
         warning(WarningProps { percent: percent }),
         progress_bar(ProgressBarProps { percent: percent }),
     ])))
@@ -40,13 +51,13 @@ pub fn progress_bar<'a>(props: ProgressBarProps) -> Option<Node<'a>> {
     )
 }
 
-pub struct ControlButtonsProps {
+pub struct ControlButtonsProps<'a> {
     percent: u16,
+    on_less: MouseClickHandler<'a>,
+    on_more: MouseClickHandler<'a>,
 }
-pub fn control_buttons<'a>(
-    props: ControlButtonsProps,
-    state: &'a RefCell<State>,
-) -> Option<Node<'a>> {
+
+pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Option<Node<'a>> {
     let percent = props.percent;
 
     Some(Node::new(1, 1).set_children(Some(vec![
@@ -55,30 +66,30 @@ pub fn control_buttons<'a>(
             top: 10,
             title: "Less",
             disable: percent <= 0,
-            on_mouse_click: Some(click_less(percent, state)),
+            on_mouse_click: Some(props.on_less),
         }),
         button(ButtonProps {
             left: 45,
             top: 10,
             title: "Moar!",
             disable: percent >= 100,
-            on_mouse_click: Some(click_more(state)),
+            on_mouse_click: Some(props.on_more),
         }),
     ])))
 }
 
-fn click_less<'a>(percent: u16, state: &'a RefCell<State>) -> MouseClickHandler {
+fn click_less<'a>(state: &'a RefCell<State>, percent: u16, increment: u16) -> MouseClickHandler {
     Box::new(move || {
         let mut mutstate = state.borrow_mut();
-        let new_counter: i32 = (percent as i32) - 10;
+        let new_counter: i32 = (percent as i32) - increment as i32;
 
         mutstate.percent = if new_counter >= 0 { new_counter } else { 0 } as u16;
     })
 }
 
-fn click_more<'a>(state: &'a RefCell<State>) -> MouseClickHandler {
+fn click_more<'a>(state: &'a RefCell<State>, increment: u16) -> MouseClickHandler {
     Box::new(move || {
-        state.borrow_mut().percent += 10;
+        state.borrow_mut().percent += increment;
     })
 }
 

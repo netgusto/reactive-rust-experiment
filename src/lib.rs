@@ -12,6 +12,7 @@ use termion::{async_stdin, AsyncReader};
 use std::cell::RefCell;
 
 pub type MouseClickHandler<'a> = Box<dyn FnMut() -> () + 'a>;
+pub type Children<'a> = Vec<Option<Node<'a>>>;
 
 pub struct Node<'a> {
     top: u16,
@@ -23,12 +24,12 @@ pub struct Node<'a> {
     on_mouse_click: Option<MouseClickHandler<'a>>,
     on_mouse_down: Option<MouseClickHandler<'a>>,
     disabled: bool,
-    children: Option<Vec<Option<Node<'a>>>>,
+    children: Option<Children<'a>>,
 }
 
-pub trait Component<'a> {
-    fn render() -> Node<'a>;
-}
+// pub trait Component<'a> {
+//     fn render(self) -> Option<Node<'a>>;
+// }
 
 // pub trait StatefulComponent<'a> {
 //     type State;
@@ -79,7 +80,7 @@ impl<'a> Node<'a> {
         self
     }
 
-    pub fn set_children(mut self, children: Option<Vec<Option<Node<'a>>>>) -> Self {
+    pub fn set_children(mut self, children: Option<Children<'a>>) -> Self {
         self.children = children;
         self
     }

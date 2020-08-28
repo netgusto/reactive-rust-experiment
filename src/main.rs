@@ -4,7 +4,7 @@ mod component;
 mod lib;
 use lib::Node;
 
-use component::HeaderProps;
+use component::{HeaderProps, SettingsControlsProps};
 
 #[derive(Copy, Clone)]
 pub struct State {
@@ -21,7 +21,7 @@ fn app<'a>(state: &'a RefCell<State>) -> Node<'a> {
         component::header(HeaderProps {
             text: "Reactive TUI experiment with Rust",
         }),
-        component::settings_controls(state),
+        component::settings_controls(SettingsControlsProps { increment: 1 }, state),
         component::footer(),
     ]))
 }
