@@ -10,8 +10,8 @@ pub struct SettingsControls {
     pub props: SettingsControlsProps,
 }
 
-impl<'a> Component<'a> for SettingsControls {
-    fn render(&self, state: &'a RefCell<State>) -> Element<'a> {
+impl<'a> Component<'a, State> for SettingsControls {
+    fn render(&self, state: &'a RefCell<State>) -> Element<'a, State> {
         let percent = state.borrow().percent;
         Element::Node(Node::new(1, 1).set_children(Some(vec![
             control_buttons(ControlButtonsProps {
@@ -29,7 +29,7 @@ pub struct WarningProps {
     percent: u16,
 }
 
-pub fn warning<'a>(props: WarningProps) -> Element<'a> {
+pub fn warning<'a>(props: WarningProps) -> Element<'a, State> {
     match &props.percent {
         &x if x <= 0 => {
             Element::Node(Node::new(50, 27).set_text(Some("Can't go lower than 0!".to_string())))
@@ -44,7 +44,7 @@ pub fn warning<'a>(props: WarningProps) -> Element<'a> {
 pub struct ProgressBarProps {
     percent: u16,
 }
-pub fn progress_bar<'a>(props: ProgressBarProps) -> Element<'a> {
+pub fn progress_bar<'a>(props: ProgressBarProps) -> Element<'a, State> {
     Element::Node(
         Node::new(10, 20)
             .set_text(Some(format!("{} %", props.percent)))
@@ -60,7 +60,7 @@ pub struct ControlButtonsProps<'a> {
     on_more: MouseClickHandler<'a>,
 }
 
-pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Element {
+pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Element<State> {
     let percent = props.percent;
 
     Element::Node(Node::new(1, 1).set_children(Some(vec![
@@ -116,7 +116,7 @@ impl<'a> Default for ButtonProps<'a> {
     }
 }
 
-pub fn button<'a>(props: ButtonProps<'a>) -> Element<'a> {
+pub fn button<'a>(props: ButtonProps<'a>) -> Element<'a, State> {
     Element::Node(
         Node::new(props.left, props.top)
             .set_text(Some(props.title.to_string()))
@@ -131,11 +131,11 @@ pub fn button<'a>(props: ButtonProps<'a>) -> Element<'a> {
 pub struct HeaderProps<'a> {
     pub text: &'a str,
 }
-pub fn header<'a>(props: HeaderProps) -> Element<'a> {
+pub fn header<'a>(props: HeaderProps) -> Element<'a, State> {
     Element::Node(Node::new(1, 1).set_text(Some(format!("# {}", props.text))))
 }
 
-pub fn footer<'a>() -> Element<'a> {
+pub fn footer<'a>() -> Element<'a, State> {
     let dim = termion::terminal_size().unwrap();
     Element::Node(Node::new(0, dim.1).set_text(Some("Quit: q".to_string())))
 }

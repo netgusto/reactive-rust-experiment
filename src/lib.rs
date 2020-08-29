@@ -11,30 +11,22 @@ use termion::{async_stdin, AsyncReader};
 
 use std::cell::RefCell;
 
-#[derive(Copy, Clone)]
-pub struct State {
-    pub percent: u16,
+pub trait Component<'a, TState> {
+    fn render(&self, state: &'a RefCell<TState>) -> Element<'a, TState>;
 }
 
-type Comp<'a> = dyn Component<'a>;
-
-pub trait Component<'a> {
-    fn render(&self, state: &'a RefCell<State>) -> Element<'a>;
-}
-
-pub enum Element<'a> {
-    Node(Node<'a>),
-    Component(Box<Comp<'a>>),
-    #[allow(dead_code)]
+pub enum Element<'a, TState> {
+    Node(Node<'a, TState>),
+    Component(Box<dyn Component<'a, TState>>),
     None,
 }
 
 pub type MouseClickHandler<'a> = Box<dyn FnMut() -> () + 'a>;
-pub type Children<'a> = Vec<Element<'a>>;
+pub type Children<'a, TState> = Vec<Element<'a, TState>>;
 
-pub struct Node<'a> {
+pub struct Node<'a, TState> {
     text: Option<String>,
-    children: Option<Children<'a>>,
+    children: Option<Children<'a, TState>>,
     top: u16,
     left: u16,
     width: u16,
@@ -45,8 +37,8 @@ pub struct Node<'a> {
     disabled: bool,
 }
 
-impl<'a> Node<'a> {
-    pub fn new(left: u16, top: u16) -> Node<'a> {
+impl<'a, TState> Node<'a, TState> {
+    pub fn new(left: u16, top: u16) -> Node<'a, TState> {
         Node {
             left: left,
             top: top,
@@ -86,7 +78,7 @@ impl<'a> Node<'a> {
         self
     }
 
-    pub fn set_children(mut self, children: Option<Children<'a>>) -> Self {
+    pub fn set_children(mut self, children: Option<Children<'a, TState>>) -> Self {
         self.children = children;
         self
     }
@@ -97,9 +89,9 @@ impl<'a> Node<'a> {
     }
 }
 
-pub fn run<'a>(
-    app_maker: &dyn Fn() -> Element<'a>,
-    state: &'a RefCell<State>,
+pub fn run<'a, TState>(
+    app_maker: &dyn Fn() -> Element<'a, TState>,
+    state: &'a RefCell<TState>,
 ) -> Result<(), String> {
     let stdin = async_stdin();
     let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
@@ -108,7 +100,7 @@ pub fn run<'a>(
 
     let mut events_it = stdin.events();
 
-    let mut current_app: Option<Element> = None;
+    let mut current_app: Option<Element<TState>> = None;
 
     loop {
         write!(stdout, "{}{}", termion::clear::All, cursor::Hide).unwrap();
@@ -134,10 +126,10 @@ pub fn run<'a>(
     Ok(())
 }
 
-fn process_events(
+fn process_events<TState>(
     events_it: &mut Events<AsyncReader>,
     stdout: &mut RawTerminal<Stdout>,
-    app: &mut Element,
+    app: &mut Element<TState>,
 ) -> bool {
     loop {
         let event = events_it.next();
@@ -162,7 +154,7 @@ fn process_events(
     }
 }
 
-fn track_mouse_down(el: &mut Element, left: u16, top: u16) {
+fn track_mouse_down<TState>(el: &mut Element<TState>, left: u16, top: u16) {
     let node = match el {
         Element::Node(node) => node,
         _ => return,
@@ -189,7 +181,7 @@ fn track_mouse_down(el: &mut Element, left: u16, top: u16) {
     }
 }
 
-fn track_mouse_pressed(el: &mut Element, left: u16, top: u16) {
+fn track_mouse_pressed<TState>(el: &mut Element<TState>, left: u16, top: u16) {
     let node = match el {
         Element::Node(node) => node,
         _ => return,
@@ -229,7 +221,10 @@ fn aabb_contains(
         && top + height >= point_top
 }
 
-fn render_element<'a>(el: Element<'a>, state: &'a RefCell<State>) -> Element<'a> {
+fn render_element<'a, TState>(
+    el: Element<'a, TState>,
+    state: &'a RefCell<TState>,
+) -> Element<'a, TState> {
     match el {
         Element::Node(node) => render_node(node, state),
         Element::Component(component) => render_component(component, state),
@@ -237,8 +232,8 @@ fn render_element<'a>(el: Element<'a>, state: &'a RefCell<State>) -> Element<'a>
     }
 }
 
-fn render_node<'a>(n: Node<'a>, state: &'a RefCell<State>) -> Element<'a> {
-    let rendered_node: Node<'a> = Node::new(n.left, n.top)
+fn render_node<'a, TState>(n: Node<'a, TState>, state: &'a RefCell<TState>) -> Element<'a, TState> {
+    let rendered_node: Node<'a, TState> = Node::new(n.left, n.top)
         .set_text(n.text)
         .set_width(n.width)
         .set_height(n.height)
@@ -248,7 +243,7 @@ fn render_node<'a>(n: Node<'a>, state: &'a RefCell<State>) -> Element<'a> {
         .set_children(match n.children {
             None => None,
             Some(children) => {
-                let mut v: Vec<Element<'a>> = Vec::new();
+                let mut v: Vec<Element<'a, TState>> = Vec::new();
                 for c_el in children {
                     v.push(render_element(c_el, state))
                 }
@@ -259,14 +254,17 @@ fn render_node<'a>(n: Node<'a>, state: &'a RefCell<State>) -> Element<'a> {
     Element::Node(rendered_node)
 }
 
-fn render_component<'a>(component: Box<Comp<'a>>, state: &'a RefCell<State>) -> Element<'a> {
+fn render_component<'a, TState>(
+    component: Box<dyn Component<'a, TState>>,
+    state: &'a RefCell<TState>,
+) -> Element<'a, TState> {
     render_element(component.render(state), state)
 }
 
-fn draw_node<'a>(
+fn draw_node<'a, TState>(
     stdout: &mut RawTerminal<Stdout>,
-    el: &mut Element<'a>,
-    state: &'a RefCell<State>,
+    el: &mut Element<'a, TState>,
+    state: &'a RefCell<TState>,
 ) {
     let b = match el {
         Element::Node(node) => node,
