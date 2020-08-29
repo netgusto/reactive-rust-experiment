@@ -6,7 +6,7 @@ pub struct ButtonProps<'a> {
     pub top: u16,
     pub title: &'a str,
     pub disable: bool,
-    pub on_mouse_click: Option<MouseClickHandler<'a>>,
+    pub on_click: Option<MouseClickHandler<'a>>,
 }
 
 impl<'a> Default for ButtonProps<'a> {
@@ -16,7 +16,7 @@ impl<'a> Default for ButtonProps<'a> {
             top: 1,
             title: "",
             disable: false,
-            on_mouse_click: None,
+            on_click: None,
         }
     }
 }
@@ -29,6 +29,6 @@ pub fn button<'a>(props: ButtonProps<'a>) -> Element<'a, State> {
             .set_width(30)
             .set_height(7)
             .disable(props.disable)
-            .set_on_mouse_click(props.on_mouse_click),
+            .set_on_click(props.on_click),
     )
 }

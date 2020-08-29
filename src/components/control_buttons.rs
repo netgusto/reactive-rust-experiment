@@ -18,14 +18,14 @@ pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Element<State> {
             top: 10,
             title: "Less",
             disable: percent <= 0,
-            on_mouse_click: Some(props.on_less),
+            on_click: Some(props.on_less),
         }),
         button(ButtonProps {
             left: 45,
             top: 10,
             title: "Moar!",
             disable: percent >= 100,
-            on_mouse_click: Some(props.on_more),
+            on_click: Some(props.on_more),
         }),
     ])
 }

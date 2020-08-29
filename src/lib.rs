@@ -42,8 +42,7 @@ pub struct Node<'a, TState> {
     width: u16,
     height: u16,
     border: bool,
-    on_mouse_click: Option<MouseClickHandler<'a>>,
-    on_mouse_down: Option<MouseClickHandler<'a>>,
+    on_click: Option<MouseClickHandler<'a>>,
     disabled: bool,
 }
 
@@ -55,8 +54,7 @@ impl<'a, TState> Node<'a, TState> {
             width: 1,
             height: 1,
             text: None,
-            on_mouse_click: None,
-            on_mouse_down: None,
+            on_click: None,
             disabled: false,
             border: false,
             children: None,
@@ -93,8 +91,8 @@ impl<'a, TState> Node<'a, TState> {
         self
     }
 
-    pub fn set_on_mouse_click(mut self, handler: Option<MouseClickHandler<'a>>) -> Self {
-        self.on_mouse_click = handler;
+    pub fn set_on_click(mut self, handler: Option<MouseClickHandler<'a>>) -> Self {
+        self.on_click = handler;
         self
     }
 }
@@ -117,7 +115,7 @@ pub fn run<'a, TState>(
 
         match &mut current_app {
             None => (),
-            Some(some) => match process_events(&mut events_it, &mut stdout, some) {
+            Some(some) => match process_events(&mut events_it, some) {
                 true => break,
                 _ => (),
             },
@@ -136,26 +134,18 @@ pub fn run<'a, TState>(
     Ok(())
 }
 
-fn process_events<TState>(
-    events_it: &mut Events<AsyncReader>,
-    stdout: &mut RawTerminal<Stdout>,
-    app: &mut Element<TState>,
-) -> bool {
+fn process_events<TState>(events_it: &mut Events<AsyncReader>, app: &mut Element<TState>) -> bool {
     loop {
         let event = events_it.next();
         match event {
             None => return false,
             Some(Ok(Event::Key(Key::Char(c)))) => match c {
                 'q' => return true,
-                'c' => write!(stdout, "{}", termion::clear::All).unwrap(),
                 _ => (),
             },
             Some(Ok(Event::Mouse(me))) => match me {
-                MouseEvent::Press(_, left, top) => {
-                    track_mouse_down(app, left, top);
-                }
                 MouseEvent::Release(left, top) => {
-                    track_mouse_pressed(app, left, top);
+                    track_mouse_clicked(app, left, top);
                 }
                 _ => (),
             },
@@ -164,44 +154,12 @@ fn process_events<TState>(
     }
 }
 
-fn track_mouse_down<TState>(el: &mut Element<TState>, left: u16, top: u16) {
+fn track_mouse_clicked<TState>(el: &mut Element<TState>, left: u16, top: u16) {
     let node = match el {
         Element::Node(node) => node,
         Element::Container(container) => {
             return for i in 0..container.len() {
-                track_mouse_down(&mut container[i], left, top)
-            }
-        }
-        _ => return,
-    };
-
-    if node.disabled {
-        return;
-    }
-
-    if aabb_contains(node.left, node.top, node.width, node.height, left, top) {
-        match &mut node.on_mouse_down {
-            Some(c) => return c(),
-            _ => (),
-        }
-    }
-
-    match &mut node.children {
-        None => return,
-        Some(children) => {
-            for i in 0..children.len() {
-                track_mouse_down(&mut children[i], left, top)
-            }
-        }
-    }
-}
-
-fn track_mouse_pressed<TState>(el: &mut Element<TState>, left: u16, top: u16) {
-    let node = match el {
-        Element::Node(node) => node,
-        Element::Container(container) => {
-            return for i in 0..container.len() {
-                track_mouse_pressed(&mut container[i], left, top)
+                track_mouse_clicked(&mut container[i], left, top)
             }
         }
         _ => return,
@@ -211,7 +169,7 @@ fn track_mouse_pressed<TState>(el: &mut Element<TState>, left: u16, top: u16) {
         return;
     }
     if aabb_contains(node.left, node.top, node.width, node.height, left, top) {
-        match &mut node.on_mouse_click {
+        match &mut node.on_click {
             Some(c) => return c(),
             _ => (),
         }
@@ -221,7 +179,7 @@ fn track_mouse_pressed<TState>(el: &mut Element<TState>, left: u16, top: u16) {
         None => return,
         Some(children) => {
             for i in 0..children.len() {
-                track_mouse_pressed(&mut children[i], left, top)
+                track_mouse_clicked(&mut children[i], left, top)
             }
         }
     }
@@ -273,7 +231,7 @@ fn render_node<'a, TState>(
         .set_width(n.width)
         .set_height(n.height)
         .set_border(n.border)
-        .set_on_mouse_click(n.on_mouse_click)
+        .set_on_click(n.on_click)
         .disable(n.disabled)
         .set_children(match n.children {
             None => None,
