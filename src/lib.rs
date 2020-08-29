@@ -1,6 +1,6 @@
 use std::thread;
 
-use std::io::{stdout, Write};
+use std::io::{stdout, Stdout, Write};
 use termion::color;
 use termion::cursor;
 use termion::cursor::Goto;
@@ -11,33 +11,34 @@ use termion::{async_stdin, AsyncReader};
 
 use std::cell::RefCell;
 
+type Comp = dyn Component;
+
+pub trait Component {
+    fn render(&mut self) -> Element;
+}
+
+pub enum Element<'a> {
+    Node(Node<'a>),
+    Component(Box<Comp>),
+    #[allow(dead_code)]
+    None,
+}
+
 pub type MouseClickHandler<'a> = Box<dyn FnMut() -> () + 'a>;
-pub type Children<'a> = Vec<Option<Node<'a>>>;
+pub type Children<'a> = Vec<Element<'a>>;
 
 pub struct Node<'a> {
+    text: Option<String>,
+    children: Option<Children<'a>>,
     top: u16,
     left: u16,
     width: u16,
     height: u16,
-    text: Option<String>,
     border: bool,
     on_mouse_click: Option<MouseClickHandler<'a>>,
     on_mouse_down: Option<MouseClickHandler<'a>>,
     disabled: bool,
-    children: Option<Children<'a>>,
 }
-
-// pub trait Component<'a> {
-//     fn render(self) -> Option<Node<'a>>;
-// }
-
-// pub trait StatefulComponent<'a> {
-//     type State;
-//     type Props;
-
-//     fn new(initial_state: &mut Self::State) -> Self;
-//     fn render(&self, props: &Self::Props) -> Option<Node<'a>>;
-// }
 
 impl<'a> Node<'a> {
     pub fn new(left: u16, top: u16) -> Node<'a> {
@@ -92,7 +93,7 @@ impl<'a> Node<'a> {
 }
 
 pub fn run<'a, T>(
-    app_maker: &dyn Fn(&'a RefCell<T>) -> Node<'a>,
+    app_maker: &dyn Fn(&'a RefCell<T>) -> Element,
     state: &'a RefCell<T>,
 ) -> Result<(), String> {
     let stdin = async_stdin();
@@ -111,7 +112,7 @@ pub fn run<'a, T>(
             _ => (),
         };
 
-        render_node(&mut stdout, &app);
+        render_element(&mut stdout, &mut app);
         stdout.flush().unwrap();
 
         #[allow(deprecated)]
@@ -125,8 +126,8 @@ pub fn run<'a, T>(
 
 fn process_events(
     events_it: &mut Events<AsyncReader>,
-    stdout: &mut RawTerminal<std::io::Stdout>,
-    app: &mut Node,
+    stdout: &mut RawTerminal<Stdout>,
+    app: &mut Element,
 ) -> bool {
     loop {
         let event = events_it.next();
@@ -137,21 +138,22 @@ fn process_events(
                 'c' => write!(stdout, "{}", termion::clear::All).unwrap(),
                 _ => (),
             },
-            Some(Ok(Event::Mouse(me))) => match me {
-                MouseEvent::Press(_, left, top) => {
-                    track_mouse_down(app, left, top);
-                }
-                MouseEvent::Release(left, top) => {
-                    track_mouse_pressed(app, left, top);
-                }
-                _ => (),
-            },
+            // Some(Ok(Event::Mouse(me))) => match me {
+            //     MouseEvent::Press(_, left, top) => {
+            //         track_mouse_down(app, left, top);
+            //     }
+            //     MouseEvent::Release(left, top) => {
+            //         track_mouse_pressed(app, left, top);
+            //     }
+            //     _ => (),
+            // },
             _ => (),
         }
     }
 }
 
-fn track_mouse_down(node: &mut Node, left: u16, top: u16) {
+/*
+fn track_mouse_down(node: &mut Element, left: u16, top: u16) {
     if node.disabled {
         return;
     }
@@ -199,7 +201,7 @@ fn track_mouse_pressed(node: &mut Node, left: u16, top: u16) {
         }
     }
 }
-
+*/
 fn aabb_contains(
     left: u16,
     top: u16,
@@ -214,7 +216,19 @@ fn aabb_contains(
         && top + height >= point_top
 }
 
-fn render_node(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, b: &Node) {
+fn render_element(stdout: &mut RawTerminal<Stdout>, el: &mut Element) {
+    match el {
+        Element::Node(node) => render_node(stdout, node),
+        Element::Component(component) => render_component(stdout, component.as_mut()),
+        Element::None => (),
+    }
+}
+
+fn render_component(stdout: &mut RawTerminal<Stdout>, component: &mut Comp) {
+    render_element(stdout, &mut component.render())
+}
+
+fn render_node(stdout: &mut RawTerminal<Stdout>, b: &mut Node) {
     let left = b.left;
     let top = b.top;
 
@@ -266,13 +280,10 @@ fn render_node(stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, b: &Node
         write!(stdout, "{}", color::Fg(color::Reset)).unwrap();
     }
 
-    match &b.children {
+    match &mut b.children {
         Some(children) => {
             for c in children {
-                match c {
-                    Some(n) => render_node(stdout, n),
-                    _ => (),
-                }
+                render_element(stdout, c)
             }
         }
         None => (),

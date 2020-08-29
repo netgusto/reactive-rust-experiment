@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 mod component;
 mod lib;
-use lib::Node;
+use lib::{Element, Node};
 
 use component::{HeaderProps, SettingsControlsProps};
 
@@ -16,12 +16,12 @@ fn main() -> Result<(), String> {
     lib::run(&app, &state)
 }
 
-fn app<'a>(state: &'a RefCell<State>) -> Node<'a> {
-    Node::new(1, 1).set_children(Some(vec![
+fn app<'a>(state: &'a RefCell<State>) -> Element<'a> {
+    Element::Node(Node::new(1, 1).set_children(Some(vec![
         component::header(HeaderProps {
             text: "Reactive TUI experiment with Rust",
         }),
         component::settings_controls(SettingsControlsProps { increment: 1 }, state),
         component::footer(),
-    ]))
+    ])))
 }
