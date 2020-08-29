@@ -16,11 +16,13 @@ pub struct SettingsControls {
 impl<'a> StatefulComponent<'a, State> for SettingsControls {
     fn render(&self, state: &'a StateBox<State>) -> Element<'a, State> {
         let percent = state.borrow().percent;
+        let increment = self.props.increment;
+
         Element::Container(vec![
             control_buttons(ControlButtonsProps {
                 percent: percent,
-                on_less: click_less(state, percent, self.props.increment),
-                on_more: click_more(state, self.props.increment),
+                on_less: click_less(state, percent, increment),
+                on_more: click_more(state, increment),
             }),
             warning(WarningProps { percent: percent }),
             progress_bar(ProgressBarProps { percent: percent }),
