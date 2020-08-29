@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+use std::io::{stdout, Stdout, Write};
 use std::{thread::sleep, time::Duration};
 
-use std::io::{stdout, Stdout, Write};
 use termion::color;
 use termion::cursor;
 use termion::cursor::Goto;
@@ -12,14 +13,10 @@ use termion::{async_stdin, AsyncReader};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub type StateBox<TState> = Rc<RefCell<TState>>;
-
-pub fn new_state_box<TState>(initial_state: TState) -> StateBox<TState> {
-    Rc::new(RefCell::new(initial_state))
-}
+type StateStore<TState> = HashMap<i32, Rc<RefCell<TState>>>;
 
 pub trait StatefulComponent<'a, TState> {
-    fn render(&self, state: &'a StateBox<TState>) -> Element<'a, TState>;
+    fn render(&self, state: Option<&mut TState>) -> Element<'a, TState>;
 }
 
 pub enum Element<'a, TState> {
@@ -99,7 +96,7 @@ impl<'a, TState> Node<'a, TState> {
 
 pub fn run<'a, TState>(
     app_maker: &dyn Fn() -> Element<'a, TState>,
-    state: &'a StateBox<TState>,
+    state_store: &'a StateStore<TState>,
 ) -> Result<(), String> {
     let stdin = async_stdin();
     let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
@@ -121,8 +118,8 @@ pub fn run<'a, TState>(
             },
         }
 
-        let mut rendered = render_element(app_maker(), state);
-        draw_node(&mut stdout, &mut rendered, state);
+        let mut rendered = render_element(app_maker(), state_store);
+        draw_node(&mut stdout, &mut rendered, state_store);
         current_app = Some(rendered);
         stdout.flush().unwrap();
 
@@ -201,7 +198,7 @@ fn aabb_contains(
 
 fn render_element<'a, TState>(
     el: Element<'a, TState>,
-    state: &'a StateBox<TState>,
+    state: &'a StateStore<TState>,
 ) -> Element<'a, TState> {
     match el {
         Element::Container(container) => render_container(container, state),
@@ -213,7 +210,7 @@ fn render_element<'a, TState>(
 
 fn render_container<'a, TState>(
     container: Container<'a, TState>,
-    state: &'a StateBox<TState>,
+    state: &'a StateStore<TState>,
 ) -> Element<'a, TState> {
     let mut v: Container<'a, TState> = Vec::new();
     for c_el in container {
@@ -224,7 +221,7 @@ fn render_container<'a, TState>(
 
 fn render_node<'a, TState>(
     n: Node<'a, TState>,
-    state: &'a StateBox<TState>,
+    state: &'a StateStore<TState>,
 ) -> Element<'a, TState> {
     let rendered_node = Node::new(n.left, n.top)
         .set_text(n.text)
@@ -249,15 +246,21 @@ fn render_node<'a, TState>(
 
 fn render_component<'a, TState>(
     component: Box<dyn StatefulComponent<'a, TState>>,
-    state: &'a StateBox<TState>,
+    state: &'a StateStore<TState>,
 ) -> Element<'a, TState> {
-    render_element(component.render(state), state)
+    let b = state.get(&42);
+    let mut s = match b {
+        Some(v) => Some(v.borrow_mut()),
+        _ => panic!("hannnn"),
+    };
+
+    render_element(component.render(s.as_deref_mut()), state)
 }
 
 fn draw_node<'a, TState>(
     stdout: &mut RawTerminal<Stdout>,
     el: &mut Element<'a, TState>,
-    state: &'a StateBox<TState>,
+    state: &'a StateStore<TState>,
 ) {
     let b = match el {
         Element::Node(node) => node,

@@ -1,7 +1,11 @@
 mod components;
 mod lib;
 
-use lib::{new_state_box, Element};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+
+use lib::Element;
 
 use components::{
     footer::footer,
@@ -9,16 +13,27 @@ use components::{
     settings_controls::{SettingsControls, SettingsControlsProps},
 };
 
-#[derive(Copy, Clone)]
+pub enum AllStates {
+    ControlsSettingsState(State),
+}
+
+#[derive(Debug)]
 pub struct State {
-    pub percent: u16,
+    pub percent: i32,
 }
 
 fn main() -> Result<(), String> {
-    lib::run(&app, &new_state_box(State { percent: 50 }))
+    let mut state_store: HashMap<i32, Rc<RefCell<AllStates>>> = HashMap::new();
+    state_store.insert(
+        42,
+        Rc::new(RefCell::new(AllStates::ControlsSettingsState(State {
+            percent: 36,
+        }))),
+    );
+    lib::run(&app, &state_store)
 }
 
-fn app<'a>() -> Element<'a, State> {
+fn app<'a>() -> Element<'a, AllStates> {
     Element::Container(vec![
         header(HeaderProps {
             text: "Reactive TUI experiment with Rust",

@@ -1,5 +1,5 @@
 use crate::lib::{Element, MouseClickHandler, Node};
-use crate::State;
+use crate::AllStates;
 
 pub struct ButtonProps<'a> {
     pub left: u16,
@@ -21,7 +21,7 @@ impl<'a> Default for ButtonProps<'a> {
     }
 }
 
-pub fn button<'a>(props: ButtonProps<'a>) -> Element<'a, State> {
+pub fn button<'a>(props: ButtonProps<'a>) -> Element<'a, AllStates> {
     Element::Node(
         Node::new(props.left, props.top)
             .set_text(Some(props.title.to_string()))

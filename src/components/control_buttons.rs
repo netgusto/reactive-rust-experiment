@@ -1,15 +1,15 @@
 use crate::lib::{Element, MouseClickHandler};
-use crate::State;
+use crate::AllStates;
 
 use super::button::{button, ButtonProps};
 
-pub struct ControlButtonsProps<'a> {
-    pub percent: u16,
-    pub on_less: MouseClickHandler<'a>,
-    pub on_more: MouseClickHandler<'a>,
+pub struct ControlButtonsProps /*<'a>*/ {
+    pub percent: i32,
+    // pub on_less: MouseClickHandler<'a>,
+    // pub on_more: MouseClickHandler<'a>,
 }
 
-pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Element<State> {
+pub fn control_buttons<'a>(props: ControlButtonsProps /*<'a>*/) -> Element<'a, AllStates> {
     let percent = props.percent;
 
     Element::Container(vec![
@@ -18,14 +18,16 @@ pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Element<State> {
             top: 10,
             title: "Less",
             disable: percent <= 0,
-            on_click: Some(props.on_less),
+            on_click: None,
+            // on_click: Some(props.on_less),
         }),
         button(ButtonProps {
             left: 45,
             top: 10,
             title: "Moar!",
             disable: percent >= 100,
-            on_click: Some(props.on_more),
+            on_click: None,
+            // on_click: Some(props.on_more),
         }),
     ])
 }

@@ -1,11 +1,11 @@
 use crate::lib::{Element, Node};
-use crate::State;
+use crate::AllStates;
 
 pub struct WarningProps {
-    pub percent: u16,
+    pub percent: i32,
 }
 
-pub fn warning<'a>(props: WarningProps) -> Element<'a, State> {
+pub fn warning<'a>(props: WarningProps) -> Element<'a, AllStates> {
     match &props.percent {
         &x if x <= 0 => {
             Element::Node(Node::new(50, 27).set_text(Some("Can't go lower than 0!".to_string())))
