@@ -1,4 +1,4 @@
-use crate::lib::{Element, MouseClickHandler, Node};
+use crate::lib::{Component, Element, MouseClickHandler, Node};
 use crate::State;
 use std::cell::RefCell;
 
@@ -6,17 +6,23 @@ pub struct SettingsControlsProps {
     pub increment: u16,
 }
 
-pub fn settings_controls<'a>(props: SettingsControlsProps, state: &'a RefCell<State>) -> Element {
-    let percent = state.borrow().percent;
-    Element::Node(Node::new(1, 1).set_children(Some(vec![
-        control_buttons(ControlButtonsProps {
-            percent: percent,
-            on_less: click_less(state, percent, props.increment),
-            on_more: click_more(state, props.increment),
-        }),
-        warning(WarningProps { percent: percent }),
-        progress_bar(ProgressBarProps { percent: percent }),
-    ])))
+pub struct SettingsControls {
+    pub props: SettingsControlsProps,
+}
+
+impl<'a> Component<'a> for SettingsControls {
+    fn render(&self, state: &'a RefCell<State>) -> Element<'a> {
+        let percent = state.borrow().percent;
+        Element::Node(Node::new(1, 1).set_children(Some(vec![
+            control_buttons(ControlButtonsProps {
+                percent: percent,
+                on_less: click_less(state, percent, self.props.increment),
+                on_more: click_more(state, self.props.increment),
+            }),
+            warning(WarningProps { percent: percent }),
+            progress_bar(ProgressBarProps { percent: percent }),
+        ])))
+    }
 }
 
 pub struct WarningProps {

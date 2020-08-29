@@ -2,26 +2,23 @@ use std::cell::RefCell;
 
 mod component;
 mod lib;
-use lib::{Element, Node};
+use lib::{Element, Node, State};
 
-use component::{HeaderProps, SettingsControlsProps};
-
-#[derive(Copy, Clone)]
-pub struct State {
-    percent: u16,
-}
+use component::{footer, header, HeaderProps, SettingsControls, SettingsControlsProps};
 
 fn main() -> Result<(), String> {
     let state = RefCell::new(State { percent: 50 });
     lib::run(&app, &state)
 }
 
-fn app<'a>(state: &'a RefCell<State>) -> Element<'a> {
+fn app<'a>() -> Element<'a> {
     Element::Node(Node::new(1, 1).set_children(Some(vec![
-        component::header(HeaderProps {
+        header(HeaderProps {
             text: "Reactive TUI experiment with Rust",
         }),
-        component::settings_controls(SettingsControlsProps { increment: 1 }, state),
-        component::footer(),
+        Element::Component(Box::new(SettingsControls {
+            props: SettingsControlsProps { increment: 10 },
+        })),
+        footer(),
     ])))
 }

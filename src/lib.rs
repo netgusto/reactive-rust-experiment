@@ -1,4 +1,4 @@
-use std::thread;
+use std::{thread::sleep, time::Duration};
 
 use std::io::{stdout, Stdout, Write};
 use termion::color;
@@ -11,15 +11,20 @@ use termion::{async_stdin, AsyncReader};
 
 use std::cell::RefCell;
 
-type Comp = dyn Component;
+#[derive(Copy, Clone)]
+pub struct State {
+    pub percent: u16,
+}
 
-pub trait Component {
-    fn render(&mut self) -> Element;
+type Comp<'a> = dyn Component<'a>;
+
+pub trait Component<'a> {
+    fn render(&self, state: &'a RefCell<State>) -> Element<'a>;
 }
 
 pub enum Element<'a> {
     Node(Node<'a>),
-    Component(Box<Comp>),
+    Component(Box<Comp<'a>>),
     #[allow(dead_code)]
     None,
 }
@@ -92,9 +97,9 @@ impl<'a> Node<'a> {
     }
 }
 
-pub fn run<'a, T>(
-    app_maker: &dyn Fn(&'a RefCell<T>) -> Element,
-    state: &'a RefCell<T>,
+pub fn run<'a>(
+    app_maker: &dyn Fn() -> Element<'a>,
+    state: &'a RefCell<State>,
 ) -> Result<(), String> {
     let stdin = async_stdin();
     let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
@@ -103,20 +108,25 @@ pub fn run<'a, T>(
 
     let mut events_it = stdin.events();
 
+    let mut current_app: Option<Element> = None;
+
     loop {
         write!(stdout, "{}{}", termion::clear::All, cursor::Hide).unwrap();
-        let mut app = app_maker(&state);
 
-        match process_events(&mut events_it, &mut stdout, &mut app) {
-            true => break,
-            _ => (),
-        };
+        match &mut current_app {
+            None => (),
+            Some(some) => match process_events(&mut events_it, &mut stdout, some) {
+                true => break,
+                _ => (),
+            },
+        }
 
-        render_element(&mut stdout, &mut app);
+        let mut rendered = render_element(app_maker(), state);
+        draw_node(&mut stdout, &mut rendered, state);
+        current_app = Some(rendered);
         stdout.flush().unwrap();
 
-        #[allow(deprecated)]
-        thread::sleep_ms(16);
+        sleep(Duration::from_millis(16));
     }
 
     write!(stdout, "{}{}", termion::clear::All, cursor::Show).unwrap();
@@ -138,22 +148,26 @@ fn process_events(
                 'c' => write!(stdout, "{}", termion::clear::All).unwrap(),
                 _ => (),
             },
-            // Some(Ok(Event::Mouse(me))) => match me {
-            //     MouseEvent::Press(_, left, top) => {
-            //         track_mouse_down(app, left, top);
-            //     }
-            //     MouseEvent::Release(left, top) => {
-            //         track_mouse_pressed(app, left, top);
-            //     }
-            //     _ => (),
-            // },
+            Some(Ok(Event::Mouse(me))) => match me {
+                MouseEvent::Press(_, left, top) => {
+                    track_mouse_down(app, left, top);
+                }
+                MouseEvent::Release(left, top) => {
+                    track_mouse_pressed(app, left, top);
+                }
+                _ => (),
+            },
             _ => (),
         }
     }
 }
 
-/*
-fn track_mouse_down(node: &mut Element, left: u16, top: u16) {
+fn track_mouse_down(el: &mut Element, left: u16, top: u16) {
+    let node = match el {
+        Element::Node(node) => node,
+        _ => return,
+    };
+
     if node.disabled {
         return;
     }
@@ -169,16 +183,18 @@ fn track_mouse_down(node: &mut Element, left: u16, top: u16) {
         None => return,
         Some(children) => {
             for i in 0..children.len() {
-                match &mut children[i] {
-                    Some(c) => track_mouse_down(c, left, top),
-                    _ => (),
-                }
+                track_mouse_down(&mut children[i], left, top)
             }
         }
     }
 }
 
-fn track_mouse_pressed(node: &mut Node, left: u16, top: u16) {
+fn track_mouse_pressed(el: &mut Element, left: u16, top: u16) {
+    let node = match el {
+        Element::Node(node) => node,
+        _ => return,
+    };
+
     if node.disabled {
         return;
     }
@@ -193,15 +209,12 @@ fn track_mouse_pressed(node: &mut Node, left: u16, top: u16) {
         None => return,
         Some(children) => {
             for i in 0..children.len() {
-                match &mut children[i] {
-                    Some(c) => track_mouse_pressed(c, left, top),
-                    _ => (),
-                }
+                track_mouse_pressed(&mut children[i], left, top)
             }
         }
     }
 }
-*/
+
 fn aabb_contains(
     left: u16,
     top: u16,
@@ -216,19 +229,54 @@ fn aabb_contains(
         && top + height >= point_top
 }
 
-fn render_element(stdout: &mut RawTerminal<Stdout>, el: &mut Element) {
+fn render_element<'a>(el: Element<'a>, state: &'a RefCell<State>) -> Element<'a> {
     match el {
-        Element::Node(node) => render_node(stdout, node),
-        Element::Component(component) => render_component(stdout, component.as_mut()),
-        Element::None => (),
+        Element::Node(node) => render_node(node, state),
+        Element::Component(component) => render_component(component, state),
+        Element::None => Element::None,
     }
 }
 
-fn render_component(stdout: &mut RawTerminal<Stdout>, component: &mut Comp) {
-    render_element(stdout, &mut component.render())
+fn render_node<'a>(n: Node<'a>, state: &'a RefCell<State>) -> Element<'a> {
+    let rendered_node: Node<'a> = Node::new(n.left, n.top)
+        .set_text(n.text)
+        .set_width(n.width)
+        .set_height(n.height)
+        .set_border(n.border)
+        .set_on_mouse_click(n.on_mouse_click)
+        .disable(n.disabled)
+        .set_children(match n.children {
+            None => None,
+            Some(children) => {
+                let mut v: Vec<Element<'a>> = Vec::new();
+                for c_el in children {
+                    v.push(render_element(c_el, state))
+                }
+                Some(v)
+            }
+        });
+
+    Element::Node(rendered_node)
 }
 
-fn render_node(stdout: &mut RawTerminal<Stdout>, b: &mut Node) {
+fn render_component<'a>(component: Box<Comp<'a>>, state: &'a RefCell<State>) -> Element<'a> {
+    render_element(component.render(state), state)
+}
+
+fn draw_node<'a>(
+    stdout: &mut RawTerminal<Stdout>,
+    el: &mut Element<'a>,
+    state: &'a RefCell<State>,
+) {
+    let b = match el {
+        Element::Node(node) => node,
+        Element::None => return,
+        Element::Component(_) => {
+            // Should never happen, the graph is rendered before being drawn
+            panic!("draw_node called on un-rendered Component Element; this is a programming error")
+        }
+    };
+
     let left = b.left;
     let top = b.top;
 
@@ -283,7 +331,7 @@ fn render_node(stdout: &mut RawTerminal<Stdout>, b: &mut Node) {
     match &mut b.children {
         Some(children) => {
             for c in children {
-                render_element(stdout, c)
+                draw_node(stdout, c, state)
             }
         }
         None => (),
