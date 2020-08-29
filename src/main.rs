@@ -23,7 +23,7 @@ fn app<'a>() -> Element<'a, State> {
         header(HeaderProps {
             text: "Reactive TUI experiment with Rust",
         }),
-        Element::Component(Box::new(SettingsControls {
+        Element::StatefulComponent(Box::new(SettingsControls {
             props: SettingsControlsProps { increment: 10 },
         })),
         footer(),

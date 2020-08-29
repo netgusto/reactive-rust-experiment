@@ -14,18 +14,18 @@ use std::rc::Rc;
 
 pub type StateBox<TState> = Rc<RefCell<TState>>;
 
-pub fn new_state_box<TState>(state: TState) -> StateBox<TState> {
-    Rc::new(RefCell::new(state))
+pub fn new_state_box<TState>(initial_state: TState) -> StateBox<TState> {
+    Rc::new(RefCell::new(initial_state))
 }
 
-pub trait Component<'a, TState> {
+pub trait StatefulComponent<'a, TState> {
     fn render(&self, state: &'a StateBox<TState>) -> Element<'a, TState>;
 }
 
 pub enum Element<'a, TState> {
     Container(Container<'a, TState>),
     Node(Node<'a, TState>),
-    Component(Box<dyn Component<'a, TState>>),
+    StatefulComponent(Box<dyn StatefulComponent<'a, TState>>),
     None,
 }
 
@@ -206,7 +206,7 @@ fn render_element<'a, TState>(
     match el {
         Element::Container(container) => render_container(container, state),
         Element::Node(node) => render_node(node, state),
-        Element::Component(component) => render_component(component, state),
+        Element::StatefulComponent(component) => render_component(component, state),
         Element::None => Element::None,
     }
 }
@@ -226,7 +226,7 @@ fn render_node<'a, TState>(
     n: Node<'a, TState>,
     state: &'a StateBox<TState>,
 ) -> Element<'a, TState> {
-    let rendered_node: Node<'a, TState> = Node::new(n.left, n.top)
+    let rendered_node = Node::new(n.left, n.top)
         .set_text(n.text)
         .set_width(n.width)
         .set_height(n.height)
@@ -236,7 +236,7 @@ fn render_node<'a, TState>(
         .set_children(match n.children {
             None => None,
             Some(children) => {
-                let mut v: Vec<Element<'a, TState>> = Vec::new();
+                let mut v = Vec::new();
                 for c_el in children {
                     v.push(render_element(c_el, state))
                 }
@@ -248,7 +248,7 @@ fn render_node<'a, TState>(
 }
 
 fn render_component<'a, TState>(
-    component: Box<dyn Component<'a, TState>>,
+    component: Box<dyn StatefulComponent<'a, TState>>,
     state: &'a StateBox<TState>,
 ) -> Element<'a, TState> {
     render_element(component.render(state), state)
@@ -261,15 +261,15 @@ fn draw_node<'a, TState>(
 ) {
     let b = match el {
         Element::Node(node) => node,
-        Element::None => return,
         Element::Container(container) => {
             return for c in container {
                 draw_node(stdout, c, state)
             }
         }
-        Element::Component(_) => {
+        Element::None => return,
+        Element::StatefulComponent(_) => {
             // Should never happen, the graph is rendered before being drawn
-            panic!("draw_node called on un-rendered Component Element; this is a programming error")
+            panic!("draw_node called on un-rendered StatefulComponent Element; this is a programming error")
         }
     };
 

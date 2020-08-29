@@ -26,8 +26,8 @@ pub fn button<'a>(props: ButtonProps<'a>) -> Element<'a, State> {
         Node::new(props.left, props.top)
             .set_text(Some(props.title.to_string()))
             .set_border(true)
-            .set_width(30)
-            .set_height(7)
+            .set_width(12 + props.title.len() as u16)
+            .set_height(5)
             .disable(props.disable)
             .set_on_click(props.on_click),
     )
