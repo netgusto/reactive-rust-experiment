@@ -1,6 +1,5 @@
-use crate::lib::{Component, Element, MouseClickHandler, Node};
+use crate::lib::{Component, Container, Element, MouseClickHandler, StateBox};
 use crate::State;
-use std::cell::RefCell;
 
 use super::control_buttons::{control_buttons, ControlButtonsProps};
 use super::progress_bar::{progress_bar, ProgressBarProps};
@@ -15,9 +14,9 @@ pub struct SettingsControls {
 }
 
 impl<'a> Component<'a, State> for SettingsControls {
-    fn render(&self, state: &'a RefCell<State>) -> Element<'a, State> {
+    fn render(&self, state: &'a StateBox<State>) -> Element<'a, State> {
         let percent = state.borrow().percent;
-        Element::Node(Node::new(1, 1).set_children(Some(vec![
+        Element::Container(Container::new().set_children(Some(vec![
             control_buttons(ControlButtonsProps {
                 percent: percent,
                 on_less: click_less(state, percent, self.props.increment),
@@ -29,7 +28,7 @@ impl<'a> Component<'a, State> for SettingsControls {
     }
 }
 
-fn click_less<'a>(state: &'a RefCell<State>, percent: u16, increment: u16) -> MouseClickHandler {
+fn click_less<'a>(state: &'a StateBox<State>, percent: u16, increment: u16) -> MouseClickHandler {
     Box::new(move || {
         let mut mutstate = state.borrow_mut();
         let new_counter: i32 = (percent as i32) - increment as i32;
@@ -38,7 +37,7 @@ fn click_less<'a>(state: &'a RefCell<State>, percent: u16, increment: u16) -> Mo
     })
 }
 
-fn click_more<'a>(state: &'a RefCell<State>, increment: u16) -> MouseClickHandler {
+fn click_more<'a>(state: &'a StateBox<State>, increment: u16) -> MouseClickHandler {
     Box::new(move || {
         state.borrow_mut().percent += increment;
     })

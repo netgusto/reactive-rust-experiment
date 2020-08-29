@@ -1,9 +1,7 @@
 mod components;
 mod lib;
 
-use std::cell::RefCell;
-
-use lib::{Element, Node};
+use lib::{new_state_box, Container, Element};
 
 use components::{
     footer::footer,
@@ -17,12 +15,11 @@ pub struct State {
 }
 
 fn main() -> Result<(), String> {
-    let state = RefCell::new(State { percent: 50 });
-    lib::run(&app, &state)
+    lib::run(&app, &new_state_box(State { percent: 50 }))
 }
 
 fn app<'a>() -> Element<'a, State> {
-    Element::Node(Node::new(1, 1).set_children(Some(vec![
+    Element::Container(Container::new().set_children(Some(vec![
         header(HeaderProps {
             text: "Reactive TUI experiment with Rust",
         }),

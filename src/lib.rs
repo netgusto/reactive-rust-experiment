@@ -10,12 +10,20 @@ use termion::raw::{IntoRawMode, RawTerminal};
 use termion::{async_stdin, AsyncReader};
 
 use std::cell::RefCell;
+use std::rc::Rc;
+
+pub type StateBox<TState> = Rc<RefCell<TState>>;
+
+pub fn new_state_box<TState>(state: TState) -> StateBox<TState> {
+    Rc::new(RefCell::new(state))
+}
 
 pub trait Component<'a, TState> {
-    fn render(&self, state: &'a RefCell<TState>) -> Element<'a, TState>;
+    fn render(&self, state: &'a StateBox<TState>) -> Element<'a, TState>;
 }
 
 pub enum Element<'a, TState> {
+    Container(Container<'a, TState>),
     Node(Node<'a, TState>),
     Component(Box<dyn Component<'a, TState>>),
     None,
@@ -23,6 +31,21 @@ pub enum Element<'a, TState> {
 
 pub type MouseClickHandler<'a> = Box<dyn FnMut() -> () + 'a>;
 pub type Children<'a, TState> = Vec<Element<'a, TState>>;
+
+pub struct Container<'a, TState> {
+    children: Option<Children<'a, TState>>,
+}
+
+impl<'a, TState> Container<'a, TState> {
+    pub fn new() -> Self {
+        Container { children: None }
+    }
+
+    pub fn set_children(mut self, children: Option<Children<'a, TState>>) -> Self {
+        self.children = children;
+        self
+    }
+}
 
 pub struct Node<'a, TState> {
     text: Option<String>,
@@ -91,7 +114,7 @@ impl<'a, TState> Node<'a, TState> {
 
 pub fn run<'a, TState>(
     app_maker: &dyn Fn() -> Element<'a, TState>,
-    state: &'a RefCell<TState>,
+    state: &'a StateBox<TState>,
 ) -> Result<(), String> {
     let stdin = async_stdin();
     let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
@@ -157,6 +180,16 @@ fn process_events<TState>(
 fn track_mouse_down<TState>(el: &mut Element<TState>, left: u16, top: u16) {
     let node = match el {
         Element::Node(node) => node,
+        Element::Container(container) => {
+            return match &mut container.children {
+                None => return,
+                Some(children) => {
+                    for i in 0..children.len() {
+                        track_mouse_down(&mut children[i], left, top)
+                    }
+                }
+            }
+        }
         _ => return,
     };
 
@@ -184,6 +217,16 @@ fn track_mouse_down<TState>(el: &mut Element<TState>, left: u16, top: u16) {
 fn track_mouse_pressed<TState>(el: &mut Element<TState>, left: u16, top: u16) {
     let node = match el {
         Element::Node(node) => node,
+        Element::Container(container) => {
+            return match &mut container.children {
+                None => return,
+                Some(children) => {
+                    for i in 0..children.len() {
+                        track_mouse_pressed(&mut children[i], left, top)
+                    }
+                }
+            };
+        }
         _ => return,
     };
 
@@ -223,16 +266,38 @@ fn aabb_contains(
 
 fn render_element<'a, TState>(
     el: Element<'a, TState>,
-    state: &'a RefCell<TState>,
+    state: &'a StateBox<TState>,
 ) -> Element<'a, TState> {
     match el {
+        Element::Container(container) => render_container(container, state),
         Element::Node(node) => render_node(node, state),
         Element::Component(component) => render_component(component, state),
         Element::None => Element::None,
     }
 }
 
-fn render_node<'a, TState>(n: Node<'a, TState>, state: &'a RefCell<TState>) -> Element<'a, TState> {
+fn render_container<'a, TState>(
+    container: Container<'a, TState>,
+    state: &'a StateBox<TState>,
+) -> Element<'a, TState> {
+    Element::Container(Container {
+        children: match container.children {
+            None => None,
+            Some(children) => {
+                let mut v: Vec<Element<'a, TState>> = Vec::new();
+                for c_el in children {
+                    v.push(render_element(c_el, state))
+                }
+                Some(v)
+            }
+        },
+    })
+}
+
+fn render_node<'a, TState>(
+    n: Node<'a, TState>,
+    state: &'a StateBox<TState>,
+) -> Element<'a, TState> {
     let rendered_node: Node<'a, TState> = Node::new(n.left, n.top)
         .set_text(n.text)
         .set_width(n.width)
@@ -256,7 +321,7 @@ fn render_node<'a, TState>(n: Node<'a, TState>, state: &'a RefCell<TState>) -> E
 
 fn render_component<'a, TState>(
     component: Box<dyn Component<'a, TState>>,
-    state: &'a RefCell<TState>,
+    state: &'a StateBox<TState>,
 ) -> Element<'a, TState> {
     render_element(component.render(state), state)
 }
@@ -264,11 +329,21 @@ fn render_component<'a, TState>(
 fn draw_node<'a, TState>(
     stdout: &mut RawTerminal<Stdout>,
     el: &mut Element<'a, TState>,
-    state: &'a RefCell<TState>,
+    state: &'a StateBox<TState>,
 ) {
     let b = match el {
         Element::Node(node) => node,
         Element::None => return,
+        Element::Container(container) => {
+            return match &mut container.children {
+                Some(children) => {
+                    for c in children {
+                        draw_node(stdout, c, state)
+                    }
+                }
+                None => (),
+            }
+        }
         Element::Component(_) => {
             // Should never happen, the graph is rendered before being drawn
             panic!("draw_node called on un-rendered Component Element; this is a programming error")
