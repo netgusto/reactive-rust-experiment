@@ -1,7 +1,7 @@
 mod components;
 mod lib;
 
-use lib::{new_state_box, Container, Element};
+use lib::{new_state_box, Element};
 
 use components::{
     footer::footer,
@@ -19,7 +19,7 @@ fn main() -> Result<(), String> {
 }
 
 fn app<'a>() -> Element<'a, State> {
-    Element::Container(Container::new().set_children(Some(vec![
+    Element::Container(vec![
         header(HeaderProps {
             text: "Reactive TUI experiment with Rust",
         }),
@@ -27,5 +27,5 @@ fn app<'a>() -> Element<'a, State> {
             props: SettingsControlsProps { increment: 10 },
         })),
         footer(),
-    ])))
+    ])
 }

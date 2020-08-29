@@ -1,4 +1,4 @@
-use crate::lib::{Component, Container, Element, MouseClickHandler, StateBox};
+use crate::lib::{Component, Element, MouseClickHandler, StateBox};
 use crate::State;
 
 use super::control_buttons::{control_buttons, ControlButtonsProps};
@@ -16,7 +16,7 @@ pub struct SettingsControls {
 impl<'a> Component<'a, State> for SettingsControls {
     fn render(&self, state: &'a StateBox<State>) -> Element<'a, State> {
         let percent = state.borrow().percent;
-        Element::Container(Container::new().set_children(Some(vec![
+        Element::Container(vec![
             control_buttons(ControlButtonsProps {
                 percent: percent,
                 on_less: click_less(state, percent, self.props.increment),
@@ -24,7 +24,7 @@ impl<'a> Component<'a, State> for SettingsControls {
             }),
             warning(WarningProps { percent: percent }),
             progress_bar(ProgressBarProps { percent: percent }),
-        ])))
+        ])
     }
 }
 

@@ -32,20 +32,7 @@ pub enum Element<'a, TState> {
 pub type MouseClickHandler<'a> = Box<dyn FnMut() -> () + 'a>;
 pub type Children<'a, TState> = Vec<Element<'a, TState>>;
 
-pub struct Container<'a, TState> {
-    children: Option<Children<'a, TState>>,
-}
-
-impl<'a, TState> Container<'a, TState> {
-    pub fn new() -> Self {
-        Container { children: None }
-    }
-
-    pub fn set_children(mut self, children: Option<Children<'a, TState>>) -> Self {
-        self.children = children;
-        self
-    }
-}
+pub type Container<'a, TState> = Children<'a, TState>;
 
 pub struct Node<'a, TState> {
     text: Option<String>,
@@ -181,13 +168,8 @@ fn track_mouse_down<TState>(el: &mut Element<TState>, left: u16, top: u16) {
     let node = match el {
         Element::Node(node) => node,
         Element::Container(container) => {
-            return match &mut container.children {
-                None => return,
-                Some(children) => {
-                    for i in 0..children.len() {
-                        track_mouse_down(&mut children[i], left, top)
-                    }
-                }
+            return for i in 0..container.len() {
+                track_mouse_down(&mut container[i], left, top)
             }
         }
         _ => return,
@@ -218,14 +200,9 @@ fn track_mouse_pressed<TState>(el: &mut Element<TState>, left: u16, top: u16) {
     let node = match el {
         Element::Node(node) => node,
         Element::Container(container) => {
-            return match &mut container.children {
-                None => return,
-                Some(children) => {
-                    for i in 0..children.len() {
-                        track_mouse_pressed(&mut children[i], left, top)
-                    }
-                }
-            };
+            return for i in 0..container.len() {
+                track_mouse_pressed(&mut container[i], left, top)
+            }
         }
         _ => return,
     };
@@ -280,18 +257,11 @@ fn render_container<'a, TState>(
     container: Container<'a, TState>,
     state: &'a StateBox<TState>,
 ) -> Element<'a, TState> {
-    Element::Container(Container {
-        children: match container.children {
-            None => None,
-            Some(children) => {
-                let mut v: Vec<Element<'a, TState>> = Vec::new();
-                for c_el in children {
-                    v.push(render_element(c_el, state))
-                }
-                Some(v)
-            }
-        },
-    })
+    let mut v: Container<'a, TState> = Vec::new();
+    for c_el in container {
+        v.push(render_element(c_el, state))
+    }
+    Element::Container(v)
 }
 
 fn render_node<'a, TState>(
@@ -335,13 +305,8 @@ fn draw_node<'a, TState>(
         Element::Node(node) => node,
         Element::None => return,
         Element::Container(container) => {
-            return match &mut container.children {
-                Some(children) => {
-                    for c in children {
-                        draw_node(stdout, c, state)
-                    }
-                }
-                None => (),
+            return for c in container {
+                draw_node(stdout, c, state)
             }
         }
         Element::Component(_) => {
