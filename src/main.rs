@@ -1,10 +1,15 @@
+mod components;
+mod lib;
+
 use std::cell::RefCell;
 
-mod component;
-mod lib;
 use lib::{Element, Node};
 
-use component::{footer, header, HeaderProps, SettingsControls, SettingsControlsProps};
+use components::{
+    footer::footer,
+    header::{header, HeaderProps},
+    settings_controls::{SettingsControls, SettingsControlsProps},
+};
 
 #[derive(Copy, Clone)]
 pub struct State {
