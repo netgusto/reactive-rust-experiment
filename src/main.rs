@@ -17,6 +17,15 @@ pub enum AllStates {
     ControlsSettingsState(State),
 }
 
+// impl Into<State> for AllStates {
+//     fn into(self) -> State {
+//         match self {
+//             AllStates::ControlsSettingsState(u) => u,
+//             _ => panic!(),
+//         }
+//     }
+// }
+
 #[derive(Debug)]
 pub struct State {
     pub percent: i32,

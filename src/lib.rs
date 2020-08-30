@@ -16,7 +16,7 @@ use std::rc::Rc;
 type StateStore<TState> = HashMap<i32, Rc<RefCell<TState>>>;
 
 pub trait StatefulComponent<'a, TState> {
-    fn render(&self, state: Option<&mut TState>) -> Element<'a, TState>;
+    fn render(&self, state: Rc<RefCell<TState>>) -> Element<'a, TState>;
 }
 
 pub enum Element<'a, TState> {
@@ -249,12 +249,12 @@ fn render_component<'a, TState>(
     state: &'a StateStore<TState>,
 ) -> Element<'a, TState> {
     let b = state.get(&42);
-    let mut s = match b {
-        Some(v) => Some(v.borrow_mut()),
+    let s = match b {
+        Some(v) => v,
         _ => panic!("hannnn"),
     };
 
-    render_element(component.render(s.as_deref_mut()), state)
+    render_element(component.render(s.clone()), state)
 }
 
 fn draw_node<'a, TState>(
