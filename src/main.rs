@@ -34,7 +34,7 @@ pub struct State {
 fn main() -> Result<(), String> {
     let mut state_store: HashMap<i32, Rc<RefCell<AllStates>>> = HashMap::new();
     state_store.insert(
-        42,
+        42, // component instance key; here, dummy value (component identification not implemented)
         Rc::new(RefCell::new(AllStates::ControlsSettingsState(State {
             percent: 36,
         }))),

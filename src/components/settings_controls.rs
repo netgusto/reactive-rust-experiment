@@ -1,8 +1,7 @@
 use crate::lib::{Element, MouseClickHandler, StatefulComponent};
-use crate::{AllStates, State};
+use crate::AllStates;
 
-use std::cell::{Ref, RefCell};
-use std::collections::HashMap;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::control_buttons::{control_buttons, ControlButtonsProps};
@@ -17,13 +16,12 @@ pub struct SettingsControls {
     pub props: SettingsControlsProps,
 }
 
-// pub fn extract<T>
-
 impl<'a> StatefulComponent<'a, AllStates> for SettingsControls {
     fn render(&self, state: Rc<RefCell<AllStates>>) -> Element<'a, AllStates> {
         let bs = state.borrow_mut();
         let s = match &*bs {
             AllStates::ControlsSettingsState(v) => v,
+            #[allow(unreachable_patterns)]
             _ => panic!("NOOOOOO"),
         };
 
@@ -47,6 +45,7 @@ fn click_less<'a>(state: Rc<RefCell<AllStates>>, increment: u16) -> MouseClickHa
         let mut bs = state.borrow_mut();
         let s = match &mut *bs {
             AllStates::ControlsSettingsState(v) => v,
+            #[allow(unreachable_patterns)]
             _ => panic!("NOOOOOO"),
         };
 
@@ -60,6 +59,7 @@ fn click_more<'a>(state: Rc<RefCell<AllStates>>, increment: u16) -> MouseClickHa
         let mut bs = state.borrow_mut();
         let s = match &mut *bs {
             AllStates::ControlsSettingsState(v) => v,
+            #[allow(unreachable_patterns)]
             _ => panic!("NOOOOOO"),
         };
 
