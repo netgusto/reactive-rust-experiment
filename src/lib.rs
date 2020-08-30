@@ -26,7 +26,7 @@ pub enum Element<'a, TState> {
     None,
 }
 
-pub type MouseClickHandler<'a> = Box<dyn FnMut() -> () + 'a>;
+pub type MouseClickHandler<'a> = Box<dyn FnMut() + 'a>;
 pub type Children<'a, TState> = Vec<Element<'a, TState>>;
 
 pub type Container<'a, TState> = Children<'a, TState>;
@@ -46,8 +46,8 @@ pub struct Node<'a, TState> {
 impl<'a, TState> Node<'a, TState> {
     pub fn new(left: u16, top: u16) -> Node<'a, TState> {
         Node {
-            left: left,
-            top: top,
+            left,
+            top,
             width: 1,
             height: 1,
             text: None,
@@ -112,10 +112,11 @@ pub fn run<'a, TState>(
 
         match &mut current_app {
             None => (),
-            Some(some) => match process_events(&mut events_it, some) {
-                true => break,
-                _ => (),
-            },
+            Some(some) => {
+                if let true = process_events(&mut events_it, some) {
+                    break;
+                }
+            }
         }
 
         let mut rendered = render_element(app_maker(), state_store);
@@ -136,16 +137,16 @@ fn process_events<TState>(events_it: &mut Events<AsyncReader>, app: &mut Element
         let event = events_it.next();
         match event {
             None => return false,
-            Some(Ok(Event::Key(Key::Char(c)))) => match c {
-                'q' => return true,
-                _ => (),
-            },
-            Some(Ok(Event::Mouse(me))) => match me {
-                MouseEvent::Release(left, top) => {
+            Some(Ok(Event::Key(Key::Char(c)))) => {
+                if let 'q' = c {
+                    return true;
+                }
+            }
+            Some(Ok(Event::Mouse(me))) => {
+                if let MouseEvent::Release(left, top) = me {
                     track_mouse_clicked(app, left, top);
                 }
-                _ => (),
-            },
+            }
             _ => (),
         }
     }
@@ -155,8 +156,8 @@ fn track_mouse_clicked<TState>(el: &mut Element<TState>, left: u16, top: u16) {
     let node = match el {
         Element::Node(node) => node,
         Element::Container(container) => {
-            return for i in 0..container.len() {
-                track_mouse_clicked(&mut container[i], left, top)
+            return for c in container {
+                track_mouse_clicked(c, left, top)
             }
         }
         _ => return,
@@ -166,17 +167,16 @@ fn track_mouse_clicked<TState>(el: &mut Element<TState>, left: u16, top: u16) {
         return;
     }
     if aabb_contains(node.left, node.top, node.width, node.height, left, top) {
-        match &mut node.on_click {
-            Some(c) => return c(),
-            _ => (),
+        if let Some(c) = &mut node.on_click {
+            return c();
         }
     }
 
     match &mut node.children {
-        None => return,
+        None => {}
         Some(children) => {
-            for i in 0..children.len() {
-                track_mouse_clicked(&mut children[i], left, top)
+            for c in children {
+                track_mouse_clicked(c, left, top)
             }
         }
     }

@@ -9,7 +9,7 @@ pub struct ControlButtonsProps<'a> {
     pub on_more: MouseClickHandler<'a>,
 }
 
-pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Element<'a, AllStates> {
+pub fn control_buttons(props: ControlButtonsProps) -> Element<AllStates> {
     let percent = props.percent;
 
     Element::Container(vec![
@@ -18,7 +18,6 @@ pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Element<'a, AllSta
             top: 10,
             title: "Less",
             disable: percent <= 0,
-            // on_click: None,
             on_click: Some(props.on_less),
         }),
         button(ButtonProps {
@@ -26,7 +25,6 @@ pub fn control_buttons<'a>(props: ControlButtonsProps<'a>) -> Element<'a, AllSta
             top: 10,
             title: "Moar!",
             disable: percent >= 100,
-            // on_click: None,
             on_click: Some(props.on_more),
         }),
     ])

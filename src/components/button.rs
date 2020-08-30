@@ -21,7 +21,7 @@ impl<'a> Default for ButtonProps<'a> {
     }
 }
 
-pub fn button<'a>(props: ButtonProps<'a>) -> Element<'a, AllStates> {
+pub fn button(props: ButtonProps) -> Element<AllStates> {
     Element::Node(
         Node::new(props.left, props.top)
             .set_text(Some(props.title.to_string()))

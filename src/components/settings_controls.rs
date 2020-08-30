@@ -30,12 +30,12 @@ impl<'a> StatefulComponent<'a, AllStates> for SettingsControls {
 
         Element::Container(vec![
             control_buttons(ControlButtonsProps {
-                percent: percent,
+                percent,
                 on_less: click_less(state.clone(), increment),
                 on_more: click_more(state.clone(), increment),
             }),
-            warning(WarningProps { percent: percent }),
-            progress_bar(ProgressBarProps { percent: percent }),
+            warning(WarningProps { percent }),
+            progress_bar(ProgressBarProps { percent }),
         ])
     }
 }
